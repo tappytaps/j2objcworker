@@ -99,6 +99,7 @@ async function startJ2ObjcWatcher() {
     // calling j2objc to process new files
     taskProcessor.processQueue = (listOfFiles) => {
         needRebuildProcessor.pause()
+        taskProcessor.pause()
         let files = listOfFiles.reduce((allFiles, item) => allFiles + " " + item)
         if (commander.verbose) {
             console.log("Processing files: ", JSON.stringify(files))
@@ -127,6 +128,7 @@ async function startJ2ObjcWatcher() {
                     console.log("j2objc run finished.")
                 }                
             }
+            taskProcessor.resume()
             needRebuildProcessor.resume()
             // when in batch mode, exit after first processing
             if (commander.batchmode) {

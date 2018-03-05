@@ -1,13 +1,13 @@
 {
-  "name": "j2objccomp",
-  "version": "1.0.0",
-  "description": "",
+  "name": "j2objcworker",
+  "version": "0.9.0",
+  "description": "Check files in specific directories and call j2objc when some of them changes. Used when developing hybrid Java / Swift / Objective-C app.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "sarsonj",
+  "license": "Apache 2.0",
   "dependencies": {
     "chalk": "^2.3.2",
     "chokidar": "^2.0.2",
