@@ -18,9 +18,9 @@ async function startJ2ObjcWatcher() {
     commander
         .description('J2Objc automatic java watcher and converter. With no arguments reads config from j2objc.json.')
         .usage('[options]')
-        .option('-b, --batchmode', 'Process all files and then exits (otherwise interactive mode is started)')
+        .option('-b, --batchmode', 'Process all files and then exit (otherwise interactive mode is started)')
         .option('-c, --config <jsonfile>', 'JSON file with configuration (default j2objc.json in current directory)')
-        .option('--changescript <script>', 'Script, that is executed when file was added / removed (for example call pod install on main project')
+        .option('--changescript <script>', 'Script, that is executed when file was added / removed (for example call pod install on main project)')
         .option('--verbose', "Show more debug information")
         .parse(process.argv)
 
