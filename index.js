@@ -142,6 +142,11 @@ async function startJ2ObjcWatcher() {
     await fs.remove(objcdir)
 
     chokidar.watch(fixedJavaSources).on("all", (event, path) => {
+        // anoteher check if java - looks like that some .directories
+        // go through chokidar.watch even when *.java is specified
+        if (!path.toLowerCase().endsWith(".java")) {
+            return
+        }
         if (commander.verbose) {
             console.log(`Adding file to queue ${path}`)
             console.log("Event: ", event)    
