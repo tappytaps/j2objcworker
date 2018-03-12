@@ -21,6 +21,7 @@ async function startJ2ObjcWatcher() {
         .option('-b, --batchmode', 'Process all files and then exit (otherwise interactive mode is started)')
         .option('-c, --config <jsonfile>', 'JSON file with configuration (default j2objc.json in current directory)')
         .option('--changescript <script>', 'Script, that is executed when file was added / removed (for example call pod install on main project)')
+        .option('--experimantalremove', 'Enable experimental remove function - removes *.h and *.m when related .java removed (experimental)')
         .option('--verbose', "Show more debug information")
         .parse(process.argv)
 
@@ -44,8 +45,8 @@ async function startJ2ObjcWatcher() {
         commander.help()
     }
 
-    const {otheroptions = "", classpath = "", prefix, javasources = [], objcdir = ""} = configuration
-    if (classpath.length == 0) {
+    const {otheroptions = "", classpath, prefix, javasources = [], objcdir, experimentalremove = commander.experimentalremove} = configuration
+    if (!classpath) {
         console.log(chalk.red("Item 'classpath' has to be defined in j2objc.json"))
         commander.help()
     }
@@ -53,7 +54,7 @@ async function startJ2ObjcWatcher() {
         console.log(chalk.red("At least one 'javasources' has to be defined in j2objc.json"));
         commander.help()
     }
-    if (objcdir.length == 0) {
+    if (!objcdir) {
         console.log(chalk.red("Item 'objcdir' that specifies output directory has to be defined in j2objc.json"));
         commander.help()
     }
@@ -141,21 +142,28 @@ async function startJ2ObjcWatcher() {
     console.log("* Initializing " + chalk.bold(objcdir))
     await fs.remove(objcdir)
 
-    chokidar.watch(fixedJavaSources).on("all", (event, path) => {
+    chokidar.watch(fixedJavaSources).on("all", async (event, pathWithFile) => {
         // anoteher check if java - looks like that some .directories
         // go through chokidar.watch even when *.java is specified
-        if (!path.toLowerCase().endsWith(".java")) {
+        // also handle some special cases, like when xcode uses temporary files with ~
+        if (!pathWithFile.toLowerCase().endsWith(".java") || pathWithFile.toLowerCase().endsWith("~.java")) {
             return
         }
         if (commander.verbose) {
-            console.log(`Adding file to queue ${path}`)
+            console.log(`Adding file to queue ${pathWithFile}`)
             console.log("Event: ", event)    
         }
         if (event == "add" || event == "change") {
-            taskProcessor.addFile(path)
+            taskProcessor.addFile(pathWithFile)
         }        
         if (event == "add" || event == "unlink") {
-            needRebuildProcessor.addFile(path)
+            needRebuildProcessor.addFile(pathWithFile)
+        }
+        if (event == "unlink" && experimentalremove) {
+            let destFile = path.join(path.resolve(objcdir), path.basename(pathWithFile, ".java"))
+            console.log("* removed ", chalk.bold(destFile + ".*"),".")
+            await fs.unlink(destFile + ".m")
+            await fs.unlink(destFile + ".h")
         }
     });
 }

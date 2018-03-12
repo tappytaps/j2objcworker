@@ -10,9 +10,11 @@ class TaskProcessor {
     }
 
     addFile(name) {
-        this.files.push(name)
-        if (!this.paused) {
-            this.__sheduleTimer()
+        if (!this.files.includes(name)) {
+            this.files.push(name)
+            if (!this.paused) {
+                this.__sheduleTimer()
+            }                
         }
     }
 
