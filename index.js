@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const PROTO_WAIT_FOR_MORE_FILES_TIMEOUT = 1000
-const J2OBJC_WAIT_FOR_MORE_FILES_TIMEOUT = 8000
+const J2OBJC_WAIT_FOR_MORE_FILES_TIMEOUT = 1200
 const CUSTOM_SCRIPT_WHEN_CHANGE_TIMEOUT  = 4000
 
 async function startJ2ObjcWatcher() {
@@ -136,6 +136,8 @@ async function startJ2ObjcWatcher() {
                 exec(protoCCommand, async (err, stdout, stderr) => {
                     if (err) {
                         console.error(chalk.bold.red(`j2objc_protoc exec error: ${err}`));
+                        javaTaskProcessor.resume()
+                        needRebuildProcessor.resume()                
                         return;
                     }          
                     if (stdout.length > 0) {
@@ -172,6 +174,10 @@ async function startJ2ObjcWatcher() {
                     }
                     exec(javaCCommand, (err2, stdout2, stderr2) => {
                         process.stdout.write(chalk.green("Done\n"))
+
+                        javaTaskProcessor.resume()
+                        needRebuildProcessor.resume()                
+
                         if (err) {
                             console.error(chalk.bold.red(`javac exec error: ${err2}`));
                             return;
@@ -183,8 +189,6 @@ async function startJ2ObjcWatcher() {
                 })
             });
 
-            javaTaskProcessor.resume()
-            needRebuildProcessor.resume()    
         }
     }
 
