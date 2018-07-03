@@ -10,9 +10,12 @@ async function startJ2ObjcWatcher() {
     const chalk = require('chalk')
     const TaskProcessor = require("./js/taskprocessor")
     const fs = require('fs-extra')
+    const exits = require('fs-exists-sync')
     const commander = require('commander')
     const FileHound = require('filehound')
-    const replace = require('replace-in-file');
+    const replace = require('replace-in-file')
+    const tmp = require('tmp')
+    const sha1File = require('sha1-file')
 
     const javaTaskProcessor = new TaskProcessor(J2OBJC_WAIT_FOR_MORE_FILES_TIMEOUT)
     const protoTaskProcessor = new TaskProcessor(PROTO_WAIT_FOR_MORE_FILES_TIMEOUT)
@@ -206,17 +209,47 @@ async function startJ2ObjcWatcher() {
             const filesToShow = listOfFiles.map(item => path.basename(item))
             process.stdout.write(`* Processing: ${chalk.bold(filesToShow.join(", "))}... `)
         }
-        let j2ObjcExec = `${j2objcHome}/j2objc -d "${configuration.objcdir}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+       // let j2ObjcExec = `${j2objcHome}/j2objc -d "${configuration.objcdir}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+       const tmpOut = tmp.dirSync()
+       //console.log("Tmp out name: ", tmpOut.name);
+        let j2ObjcExec = `${j2objcHome}/j2objc -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
         if (prefix) {
             j2ObjcExec += ` --prefix "${prefix}"`
         }
         j2ObjcExec += ` ${files}`
-        exec(j2ObjcExec, (err, stdout, stderr) => {
+        exec(j2ObjcExec, async (err, stdout, stderr) => {
             process.stdout.write(chalk.green("Done\n"))
             if (err) {
                 console.error(chalk.bold.red(`exec error: ${err}`));
                 return;
-            }          
+            }
+            // copy only changed files
+            const outDir = configuration.objcdir
+            const generatedFiles = await FileHound.create()
+            .paths(tmpOut.name)
+            .find()
+            //console.log("Generated files: ", JSON.stringify(generatedFiles))
+            for (const onefile of generatedFiles) {
+                // console.log("Processing ", onefile)
+                // exists in generated folder?
+                const possibleExistsFile = path.resolve(`${configuration.objcdir}/${path.basename(onefile)}`)
+                let requestToCopy = true
+               if (exits(possibleExistsFile) === true) {
+                    const sha1genereated = sha1File(onefile)
+                    const sha1old = sha1File(possibleExistsFile)
+                    //console.log(`${onefile}: ${sha1genereated}, ${possibleExistsFile}: ${sha1old}`)
+                    if (sha1genereated === sha1old) {
+                        requestToCopy = false
+                    }
+                }
+                if (requestToCopy) {
+                    // console.log(`Copy ${onefile} => ${possibleExistsFile}`)
+                    fs.copySync(onefile, possibleExistsFile)
+                } else {
+                    console.log(`${path.basename(onefile)} Not changed, will not copy.`)
+                }  
+            }
+
             if (stdout.length > 0) {
                 console.log(chalk.gray(`${stdout}`));
             }                

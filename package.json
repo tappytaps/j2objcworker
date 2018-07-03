@@ -16,9 +16,12 @@
     "eslint-config-airbnb": "^16.1.0",
     "eslint-config-prettier": "^2.9.0",
     "filehound": "^1.16.2",
+    "fs-exists-sync": "^0.1.0",
     "fs-extra": "^5.0.0",
     "npm": "^5.8.0",
-    "replace-in-file": "^3.4.0"
+    "replace-in-file": "^3.4.0",
+    "sha1-file": "^1.0.1",
+    "tmp": "0.0.33"
   },
   "bin": {
     "j2objcworker": "./index.js"
