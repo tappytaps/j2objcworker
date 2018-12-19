@@ -1,9 +1,9 @@
 # J2ObjC Worker
 The J2Objc worker is the tool to simplify development using [J2ObjC](https://developers.google.com/j2objc/). 
 
-Both ways, how to integrate Java sources with Xcode project described on J2ObjC site has downsides - and are good enough for projects, that has already stable Java backend and the iOS app is only using it. However this is not how we work in our company - we develop common Java backend and iOS frontend at one time. Therefore we usually change both Java part and iOS (Swift part) every day.
+Both ways, how to integrate Java sources with iOS project described on J2ObjC site have downsides - and are good enough for projects, that have already stable Java backend and the iOS app is only using it. However this is not how we work in our company - we develop common Java backend and iOS frontend simultaneously. Therefore we usually change both Java part and iOS (Swift part) every day.
 
-We needed to fast and easy integration, ideally compatible with CocoaPods. J2ObjC Worker tool helps with this.
+We needed fast and easy integration, ideally compatible with CocoaPods. That was reason to create J2ObjC Worker.
 
 ## How it works
 This tool is highly inspired by [nodemon](http://nodemon.io) and other similar tools, that do one simple thing - watch specific files and when they change, do something. In case of J2ObjC Worker, it calls J2ObjC tool.
@@ -32,7 +32,8 @@ Per project, the configuration is done in `j2objc.json`. It describes, where to 
     "objcdir": "./objcfiles",
     "classpath": "${J2OBJC_HOME}/lib/jre_emul.jar:${J2OBJC_HOME}/lib/j2objc_annotations.jar:${J2OBJC_HOME}/lib/javax.inject-1.jar:${J2OBJC_HOME}/lib/jsr305-3.0.0.jar",
     "prefix": "com.tappytaps.fitdog.*=FD",
-    "otheroptions": "--swift-friendly -use-arc --nullability --no-package-directories -g"
+    "otheroptions": "--swift-friendly -use-arc --nullability --no-package-directories -g",
+    "protobufdir": "protobuf"
 }
 ```
 
@@ -42,11 +43,16 @@ Per project, the configuration is done in `j2objc.json`. It describes, where to 
 * `classpath` - classpath parameter used by J2Objc (required)
 * `prefix` - package prefix configuration (see more info at [How to specify prefixes for package names] (https://developers.google.com/j2objc/guides/package-prefixes)) (optional)
 * `otheroptions` - other options, that are simply passed to J2ObjC (optional)
+* `protobufdir` - folder, where to export generated protobuff files
+
+### Protobuff support
+Because we are using Protocol Buffers in our apps frequently, we also needed easy way to handle protocol buffer definitions. Therefore tool can also watch for *.proto files and generate
+objective-c and java output to folder specified at `protobufdir`. Generated protobuff *.java files are also compiled by javac, as is described at [Objective-C protobuff guide](https://developers.google.com/j2objc/guides/using-protocol-buffers).
 
 ## Running
 You can start `j2objcworker` without parameters in the directory, where `j2objc.json` is presented. Then it transcribes all *.java files first and then it is switched to monitoring mode. In this mode, it monitors all changes in watched directories and generates new Objective-C sources.
 
-We don't store generated sources in our Git repository - they are just generated sources. So that is the reason, they are regenerated with every run. It takes just a few seconds with hundreds of Java files so that no big deal.
+We don't store generated sources in our Git repository - they are just generated sources. So that is the reason, they are regenerated with every run. It takes just a few seconds with hundreds of Java files so that it is not big deal.
 
 You can also use some parameters, `j2objcworker --help` will show them:
 
