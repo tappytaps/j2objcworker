@@ -10,25 +10,25 @@
   "author": "sarsonj",
   "license": "Apache 2.0",
   "dependencies": {
-    "chalk": "^2.3.2",
-    "chokidar": "^2.0.2",
-    "commander": "^2.14.1",
-    "eslint-config-airbnb": "^16.1.0",
-    "eslint-config-prettier": "^2.9.0",
-    "filehound": "^1.16.2",
+    "chalk": "^2.4.2",
+    "chokidar": "^2.1.0",
+    "commander": "^2.19.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-config-prettier": "^4.0.0",
+    "filehound": "^1.17.0",
     "fs-exists-sync": "^0.1.0",
-    "fs-extra": "^5.0.0",
-    "npm": "^5.8.0",
-    "replace-in-file": "^3.4.0",
-    "sha1-file": "^1.0.1",
+    "fs-extra": "^7.0.1",
+    "npm": "^6.7.0",
+    "replace-in-file": "^3.4.3",
+    "sha1-file": "^1.0.4",
     "tmp": "0.0.33"
   },
   "bin": {
     "j2objcworker": "./index.js"
   },
   "devDependencies": {
-    "eslint": "^4.19.1",
-    "eslint-config-airbnb-base": "^12.1.0",
-    "eslint-plugin-import": "^2.10.0"
+    "eslint": "^5.13.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.16.0"
   }
 }
