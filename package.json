@@ -1,6 +1,6 @@
 {
   "name": "j2objcworker",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Check files in specific directories and call j2objc when some of them changes. Used when developing hybrid Java / Swift / Objective-C app.",
   "main": "index.js",
   "scripts": {
