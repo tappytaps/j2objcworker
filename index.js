@@ -221,6 +221,9 @@ async function startJ2ObjcWatcher() {
             process.stdout.write(chalk.green("Done\n"))
             if (err) {
                 console.error(chalk.bold.red(`exec error: ${err}`));
+                javaTaskProcessor.releasePause()
+                needRebuildProcessor.releasePause()
+    
                 return;
             }
             // copy only changed files
