@@ -122,8 +122,6 @@ async function startJ2ObjcWatcher() {
         if (protobufdir === null) {
             console.log(chalk.red("Cannot process .proto - protobufdir is not set in config file."))
         } else {
-            needRebuildProcessor.pause()
-            javaTaskProcessor.pause()
             if (commander.verbose) {
                 console.log(`Proto process: ${listOfFiles}`);            
             }
@@ -131,6 +129,8 @@ async function startJ2ObjcWatcher() {
             process.stdout.write(`* Processing: ${chalk.bold(filesToShow.join(", "))}... `)
 
             listOfFiles.forEach(fileName => {
+                needRebuildProcessor.acquirePause()
+                javaTaskProcessor.acquirePause()    
                 const protoCCommand = `${j2objcHome}/j2objc_protoc  --proto_path=${absProtobufDir}/src --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${fileName}`
                 if (commander.verbose) {
                     console.log(protoCCommand)
@@ -139,8 +139,8 @@ async function startJ2ObjcWatcher() {
                 exec(protoCCommand, async (err, stdout, stderr) => {
                     if (err) {
                         console.error(chalk.bold.red(`j2objc_protoc exec error: ${err}`));
-                        javaTaskProcessor.resume()
-                        needRebuildProcessor.resume()                
+                        javaTaskProcessor.releasePause()
+                        needRebuildProcessor.releasePause()                
                         return;
                     }          
                     if (stdout.length > 0) {
@@ -178,8 +178,8 @@ async function startJ2ObjcWatcher() {
                     exec(javaCCommand, (err2, stdout2, stderr2) => {
                         process.stdout.write(chalk.green("Done\n"))
 
-                        javaTaskProcessor.resume()
-                        needRebuildProcessor.resume()                
+                        javaTaskProcessor.releasePause()
+                        needRebuildProcessor.releasePause()                
 
                         if (err) {
                             console.error(chalk.bold.red(`javac exec error: ${err2}`));
@@ -197,8 +197,8 @@ async function startJ2ObjcWatcher() {
 
     // calling j2objc to process new files
     javaTaskProcessor.processQueue = (listOfFiles) => {
-        needRebuildProcessor.pause()
-        javaTaskProcessor.pause()
+        needRebuildProcessor.acquirePause()
+        javaTaskProcessor.acquirePause()
         const files = listOfFiles.reduce((allFiles, item) => `${allFiles} ${item}`)
         if (commander.verbose) {
             console.log("Processing files: ", JSON.stringify(files))
@@ -257,8 +257,8 @@ async function startJ2ObjcWatcher() {
                 console.log("j2objc run finished.")
             }                
             
-            javaTaskProcessor.resume()
-            needRebuildProcessor.resume()
+            javaTaskProcessor.releasePause()
+            needRebuildProcessor.releasePause()
             // when in batch mode, exit after first processing
             if (commander.batchmode) {
                 process.exit(0)

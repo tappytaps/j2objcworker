@@ -6,7 +6,7 @@ class TaskProcessor {
         this.files = []
         this.timer = null
         this.processQueue = null        
-        this.paused = false
+        this.paused = 0
     }
 
     addFile(name) {
@@ -18,14 +18,18 @@ class TaskProcessor {
         }
     }
 
-    pause() {
+    acquirePause() {
         this.__cancelTimer()
-        this.paused = false
+        this.paused += 1
     }
 
-    resume() {
-        this.__sheduleTimer()
-        this.paused = false
+    releasePause() {
+        if (this.paused > 0) {
+            this.paused -= 1
+            if (this.paused === 0) {
+                this.__sheduleTimer()
+            }    
+        }
     }
 
 
