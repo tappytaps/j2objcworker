@@ -127,68 +127,67 @@ async function startJ2ObjcWatcher() {
             }
             const filesToShow = listOfFiles.map(item => path.basename(item))
             process.stdout.write(`* Processing: ${chalk.bold(filesToShow.join(", "))}... `)
+            const filesListParam = filesToShow.join(" ");
 
-            listOfFiles.forEach(fileName => {
-                needRebuildProcessor.acquirePause()
-                javaTaskProcessor.acquirePause()    
-                const protoCCommand = `${j2objcHome}/j2objc_protoc  --proto_path=${absProtobufDir}/src --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${fileName}`
-                if (commander.verbose) {
-                    console.log(protoCCommand)
+            needRebuildProcessor.acquirePause()
+            javaTaskProcessor.acquirePause()    
+            const protoCCommand = `${j2objcHome}/j2objc_protoc  --proto_path=${absProtobufDir}/src --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${filesListParam}`
+            if (commander.verbose) {
+                console.log(protoCCommand)
+            }
+            // create Java & objc protobuffers
+            exec(protoCCommand, async (err, stdout, stderr) => {
+                if (err) {
+                    console.error(chalk.bold.red(`j2objc_protoc exec error: ${err}`));
+                    javaTaskProcessor.releasePause()
+                    needRebuildProcessor.releasePause()                
+                    return;
+                }          
+                if (stdout.length > 0) {
+                    console.log(chalk.gray(`${stdout}`));
                 }
-                // create Java & objc protobuffers
-                exec(protoCCommand, async (err, stdout, stderr) => {
+//                    fix generated protobuf outputs to use "flat" includes
+                const files = await FileHound.create()
+                    .paths(`${absProtobufDir}/genobjc`)
+                    .ext("m")
+                    .find()
+                for (const file of files) {
+                    // console.log(file)
+                    try {
+                        const baseName = path.basename(file, ".m");
+                        // console.log(`Base name ${baseName}`);
+                        const changes = await replace({
+                            files: file,
+                            from: (tmpName) => new RegExp(`#import .*(${baseName}).*`, 'g'),                                
+                            to: (match) => `#import "${baseName}.h"`
+                        })
+                        // console.log('Modified files:', changes.join(', '));
+                    }
+                    catch (error) {
+                        console.error('Error occurred:', error);
+                    }    
+                }
+                
+                    
+
+                // compile Java
+                const javaCCommand = `javac -cp ${j2objcHome}/lib/protobuf_runtime.jar -d ${absProtobufDir}/classes \`find ${absProtobufDir}/genjava -name "*.java"\``
+                if (commander.verbose) {
+                    console.log(javaCCommand)
+                }
+                exec(javaCCommand, (err2, stdout2, stderr2) => {
+                    process.stdout.write(chalk.green("Done\n"))
+
+                    javaTaskProcessor.releasePause()
+                    needRebuildProcessor.releasePause()                
+
                     if (err) {
-                        console.error(chalk.bold.red(`j2objc_protoc exec error: ${err}`));
-                        javaTaskProcessor.releasePause()
-                        needRebuildProcessor.releasePause()                
+                        console.error(chalk.bold.red(`javac exec error: ${err2}`));
                         return;
                     }          
-                    if (stdout.length > 0) {
+                    if (stdout2.length > 0) {
                         console.log(chalk.gray(`${stdout}`));
-                    }
-//                    fix generated protobuf outputs to use "flat" includes
-                    const files = await FileHound.create()
-                        .paths(`${absProtobufDir}/genobjc`)
-                        .ext("m")
-                        .find()
-                    for (const file of files) {
-                        console.log(file)
-                        try {
-                            const baseName = path.basename(file, ".m");
-                            console.log(`Base name ${baseName}`)
-                            const changes = await replace({
-                                files: file,
-                                from: (tmpName) => new RegExp(`#import .*(${baseName}).*`, 'g'),                                
-                                to: (match) => `#import "${baseName}.h"`
-                            })
-                            console.log('Modified files:', changes.join(', '));
-                        }
-                        catch (error) {
-                            console.error('Error occurred:', error);
-                        }    
-                    }
-                    
-                        
-
-                    // compile Java
-                    const javaCCommand = `javac -cp ${j2objcHome}/lib/protobuf_runtime.jar -d ${absProtobufDir}/classes \`find ${absProtobufDir}/genjava -name "*.java"\``
-                    if (commander.verbose) {
-                        console.log(javaCCommand)
-                    }
-                    exec(javaCCommand, (err2, stdout2, stderr2) => {
-                        process.stdout.write(chalk.green("Done\n"))
-
-                        javaTaskProcessor.releasePause()
-                        needRebuildProcessor.releasePause()                
-
-                        if (err) {
-                            console.error(chalk.bold.red(`javac exec error: ${err2}`));
-                            return;
-                        }          
-                        if (stdout2.length > 0) {
-                            console.log(chalk.gray(`${stdout}`));
-                        }    
-                    })
+                    }    
                 })
             });
 
