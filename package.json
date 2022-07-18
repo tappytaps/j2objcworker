@@ -10,7 +10,7 @@
   "author": "sarsonj",
   "license": "Apache 2.0",
   "dependencies": {
-    "chalk": "*",
+    "chalk": "4.1.2",
     "chokidar": "^3.0.1",
     "commander": "^2.20.0",
     "eslint-config-airbnb": "*",
