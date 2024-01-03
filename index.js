@@ -1,21 +1,27 @@
 #!/usr/bin/env node
+/* eslint-disable import/extensions */
+import chokidar from 'chokidar';
+import { exec } from 'child_process';
+import path from 'path';
+import chalk from 'chalk';
+
+import fs from 'fs-extra';
+import { program } from 'commander';
+import FileHound from 'filehound';
+import replace from 'replace-in-file';
+import tmp from 'tmp';
+import sha1File from 'sha1-file';
+import util from 'util';
+import TaskProcessor from "./js/taskprocessor.js";
+
+
+
 const PROTO_WAIT_FOR_MORE_FILES_TIMEOUT = 1000
 const J2OBJC_WAIT_FOR_MORE_FILES_TIMEOUT = 1200
 const CUSTOM_SCRIPT_WHEN_CHANGE_TIMEOUT  = 4000
 
 async function startJ2ObjcWatcher() {
-    const chokidar = require('chokidar')
-    const { exec } = require('child_process')
-    const path = require('path')
-    const chalk = require('chalk')
-    const TaskProcessor = require("./js/taskprocessor")
-    const fs = require('fs-extra')
-    const exits = require('fs-exists-sync')
-    const commander = require('commander')
-    const FileHound = require('filehound')
-    const replace = require('replace-in-file')
-    const tmp = require('tmp')
-    const sha1File = require('sha1-file')
+    const promiseExec = util.promisify(exec);
 
     const javaTaskProcessor = new TaskProcessor(J2OBJC_WAIT_FOR_MORE_FILES_TIMEOUT)
     const protoTaskProcessor = new TaskProcessor(PROTO_WAIT_FOR_MORE_FILES_TIMEOUT)
@@ -28,72 +34,76 @@ async function startJ2ObjcWatcher() {
     }
 
     // command line arguments
-    commander
+    program
         .description('J2Objc automatic java watcher and converter. With no arguments reads config from j2objc.json.')
         .usage('[options]')
         .option('-b, --batchmode', 'Process all files and then exit (otherwise interactive mode is started)')
         .option('-c, --config <jsonfile>', 'JSON file with configuration (default j2objc.json in current directory)')
         .option('--changescript <script>', 'Script, that is executed when file was added / removed (for example call pod install on main project)')
         .option('--experimantalremove', 'Enable experimental remove function - removes *.h and *.m when related .java removed (experimental)')
+        .option('--onebyone', 'Compile java file one by one. Very slow, but can identify some problems (experimental)')
         .option('--verbose', "Show more debug information")
         .parse(process.argv)
 
     let configuration = {}
+    const parameters = program.opts()
     const j2objcHome = process.env.J2OBJC_HOME
     if (!j2objcHome) {
         console.log(chalk.red("Please define J2OBJC_HOME"))
-        commander.help()
-    } else if (commander.verbose) {
+        program.help()
+    } else if (parameters.verbose) {
         console.log(`Using j2Objc from ${j2objcHome}`)
     }
 
     try {
-        const configFile = commander.config ? path.resolve(commander.config) : path.join(process.cwd(),"j2objc.json")
+        const configFile = parameters.config ? path.resolve(parameters.config) : path.join(process.cwd(),"j2objc.json")
         configuration = JSON.parse(fs.readFileSync(configFile, 'utf8'));
     } catch(exeption) {
         console.log(chalk.red("No j2objc.json exists in current directory!"))
-        commander.help()
+        program.help()
     }
 
     const {
         otheroptions = "", 
         classpath, 
         prefix, 
-        javasources = [], 
+        javasources = [],
+        javaexcludes = [],
         objcdir, 
-        experimentalremove = commander.experimentalremove,
+        experimentalremove = parameters.experimentalremove,
         protobufdir,
+        protobufinclude = "./"
     } = configuration
 
     const absProtobufDir = path.resolve(protobufdir)
     
     if (!classpath) {
         console.log(chalk.red("Item 'classpath' has to be defined in j2objc.json"))
-        commander.help()
+        program.help()
     }
     if (javasources.length === 0) {
         console.log(chalk.red("At least one 'javasources' has to be defined in j2objc.json"));
-        commander.help()
+        program.help()
     }
     if (!objcdir) {
         console.log(chalk.red("Item 'objcdir' that specifies output directory has to be defined in j2objc.json"));
-        commander.help()
+        program.help()
     }
 
     // only java sources
     const fixedJavaSources = javasources.map(item => `${path.resolve(item)}/**/*`)
     const javaSourcesDirInOne = javasources.reduce((output, item) => `${output + path.resolve(item)}:`, "")
-    if (commander.verbose) {
+    if (parameters.verbose) {
         console.log(`Starting to watch folders: ${JSON.stringify(configuration.javasources)}`)
     }
 
     // need rebuild processor
     needRebuildProcessor.processQueue = () => {
-        let command = commander.changescript
+        let command = parameters.changescript
         if (!command) {
             command = configuration.changescript
         }
-        if (commander.verbose) {
+        if (parameters.verbose) {
             console.log("Starting change script")
         }        
         
@@ -122,7 +132,7 @@ async function startJ2ObjcWatcher() {
         if (protobufdir === null) {
             console.log(chalk.red("Cannot process .proto - protobufdir is not set in config file."))
         } else {
-            if (commander.verbose) {
+            if (parameters.verbose) {
                 console.log(`Proto process: ${listOfFiles}`);            
             }
             const filesToShow = listOfFiles.map(item => path.basename(item))
@@ -131,8 +141,8 @@ async function startJ2ObjcWatcher() {
 
             needRebuildProcessor.acquirePause()
             javaTaskProcessor.acquirePause()    
-            const protoCCommand = `${j2objcHome}/j2objc_protoc  --proto_path=${absProtobufDir}/src --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${filesListParam}`
-            if (commander.verbose) {
+            const protoCCommand = `${j2objcHome}/j2objc_protoc   --include_imports --proto_path=${absProtobufDir}/src --proto_path=${protobufinclude} --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${filesListParam}`
+            if (parameters.verbose) {
                 console.log(protoCCommand)
             }
             // create Java & objc protobuffers
@@ -172,7 +182,7 @@ async function startJ2ObjcWatcher() {
 
                 // compile Java
                 const javaCCommand = `javac -cp ${j2objcHome}/lib/protobuf_runtime.jar -d ${absProtobufDir}/classes \`find ${absProtobufDir}/genjava -name "*.java"\``
-                if (commander.verbose) {
+                if (parameters.verbose) {
                     console.log(javaCCommand)
                 }
                 exec(javaCCommand, (err2, stdout2, stderr2) => {
@@ -195,77 +205,88 @@ async function startJ2ObjcWatcher() {
     }
 
     // calling j2objc to process new files
-    javaTaskProcessor.processQueue = (listOfFiles) => {
+    javaTaskProcessor.processQueue = async (listOfFiles) => {        
         needRebuildProcessor.acquirePause()
         javaTaskProcessor.acquirePause()
-        const files = listOfFiles.reduce((allFiles, item) => `${allFiles} ${item}`)
-        if (commander.verbose) {
-            console.log("Processing files: ", JSON.stringify(files))
+        const listOfFilesReducedWithExludes = listOfFiles.filter(item => !javaexcludes.some(rejectionPath => item.includes(rejectionPath)))
+        const files = listOfFilesReducedWithExludes.reduce((allFiles, item) => `${allFiles} ${item}`)
+        //console.log("Processing files: ", JSON.stringify(files))
+        if (parameters.verbose) {
+            //console.log("Processing files: ", JSON.stringify(files))
         }
-        if (listOfFiles.length > 3) {
-            process.stdout.write(`* Processing ${chalk.bold(listOfFiles.length)} Java file(s)... `)
+        if (listOfFilesReducedWithExludes.length > 3) {
+            process.stdout.write(`* Processing ${chalk.bold(listOfFilesReducedWithExludes.length)} Java file(s)... `)
         } else {
-            const filesToShow = listOfFiles.map(item => path.basename(item))
+            const filesToShow = listOfFilesReducedWithExludes.map(item => path.basename(item))
             process.stdout.write(`* Processing: ${chalk.bold(filesToShow.join(", "))}... `)
         }
-       // let j2ObjcExec = `${j2objcHome}/j2objc -d "${configuration.objcdir}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
-       const tmpOut = tmp.dirSync()
-       //console.log("Tmp out name: ", tmpOut.name);
-        let j2ObjcExec = `${j2objcHome}/j2objc -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
-        if (prefix) {
-            j2ObjcExec += ` --prefix "${prefix}"`
-        }
-        j2ObjcExec += ` ${files}`
-        exec(j2ObjcExec, async (err, stdout, stderr) => {
-            process.stdout.write(chalk.green("Done\n"))
-            if (err) {
+        const tmpOut = tmp.dirSync()
+        if (parameters.onebyone) {
+            for (const oneFile of listOfFilesReducedWithExludes) {
+                console.log(`Processing file: ${oneFile}`)
+                let j2ObjcExec = `${j2objcHome}/j2objc -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+                if (prefix) {
+                    j2ObjcExec += ` --prefix "${prefix}"`
+                }
+                j2ObjcExec += ` ${oneFile}`
+                try {
+                    const {stdout, stderr } = await promiseExec(j2ObjcExec)
+                    process.stdout.write(chalk.green(`Done ${oneFile}\n`))
+                } catch (error) {
+                    console.error(chalk.bold.red(`exec error: ${oneFile}: ${error}`));
+                }
+            }
+        } else {
+            let j2ObjcExec = `${j2objcHome}/j2objc -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+            if (prefix) {
+                j2ObjcExec += ` --prefix "${prefix}"`
+            }
+            j2ObjcExec += ` ${files}`
+            try {
+                const {stdout, stderr } = await promiseExec(j2ObjcExec)
+                if (stdout.length > 0) {
+                    console.log(chalk.gray(`${stdout}`));
+                }                   
+                process.stdout.write(chalk.green(`Done\n`))    
+            } catch (err) {
                 console.error(chalk.bold.red(`exec error: ${err}`));
                 javaTaskProcessor.releasePause()
                 needRebuildProcessor.releasePause()
-    
                 return;
             }
-            // copy only changed files
-            const outDir = configuration.objcdir
-            const generatedFiles = await FileHound.create()
-            .paths(tmpOut.name)
-            .find()
-            //console.log("Generated files: ", JSON.stringify(generatedFiles))
-            for (const onefile of generatedFiles) {
-                // console.log("Processing ", onefile)
-                // exists in generated folder?
-                const possibleExistsFile = path.resolve(`${configuration.objcdir}/${path.basename(onefile)}`)
-                let requestToCopy = true
-               if (exits(possibleExistsFile) === true) {
-                    const sha1genereated = sha1File(onefile)
-                    const sha1old = sha1File(possibleExistsFile)
-                    //console.log(`${onefile}: ${sha1genereated}, ${possibleExistsFile}: ${sha1old}`)
-                    if (sha1genereated === sha1old) {
-                        requestToCopy = false
-                    }
-                }
-                if (requestToCopy) {
-                    // console.log(`Copy ${onefile} => ${possibleExistsFile}`)
-                    fs.copySync(onefile, possibleExistsFile)
-                } else {
-                    console.log(`${path.basename(onefile)} Not changed, will not copy.`)
-                }  
-            }
-
-            if (stdout.length > 0) {
-                console.log(chalk.gray(`${stdout}`));
-            }                
-            if (commander.verbose) {
-                console.log("j2objc run finished.")
-            }                
+        }
             
-            javaTaskProcessor.releasePause()
-            needRebuildProcessor.releasePause()
-            // when in batch mode, exit after first processing
-            if (commander.batchmode) {
-                process.exit(0)
-            }           
-        })
+        // copy only changed files
+        const generatedFiles = await FileHound.create()
+        .paths(tmpOut.name)
+        .find()
+        for (const onefile of generatedFiles) {
+            const possibleExistsFile = path.resolve(`${configuration.objcdir}/${path.basename(onefile)}`)
+            let requestToCopy = true
+            if (fs.existsSync(possibleExistsFile) === true) {
+                const sha1genereated = sha1File(onefile)
+                const sha1old = sha1File(possibleExistsFile)
+                if (sha1genereated === sha1old) {
+                    requestToCopy = false
+                }
+            }
+            if (requestToCopy) {
+                fs.copySync(onefile, possibleExistsFile)
+            } else {
+                console.log(`${path.basename(onefile)} Not changed, will not copy.`)
+            }  
+        } 
+
+        if (parameters.verbose) {
+            console.log("j2objc run finished.")
+        }                
+        
+        javaTaskProcessor.releasePause()
+        needRebuildProcessor.releasePause()
+        // when in batch mode, exit after first processing
+        if (parameters.batchmode) {
+            process.exit(0)
+        } 
     }
 
     // remove old output dir - we will regenerate everything in first call
@@ -300,7 +321,7 @@ async function startJ2ObjcWatcher() {
             return
         }
 
-        if (commander.verbose) {
+        if (parameters.verbose) {
             console.log(`Adding file to queue ${pathWithFile} (${fileType}`)
             console.log("Event: ", event)    
         }

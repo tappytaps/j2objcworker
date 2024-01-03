@@ -55,4 +55,4 @@ class TaskProcessor {
 
 }
 
-module.exports = TaskProcessor
+export default TaskProcessor;
