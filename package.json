@@ -1,6 +1,6 @@
 {
   "name": "j2objcworker",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Check files in specific directories and call j2objc when some of them changes. Used when developing hybrid Java / Swift / Objective-C app.",
   "main": "index.js",
   "type": "module",
@@ -33,6 +33,5 @@
     "eslint-plugin-import": "*",
     "eslint-config-airbnb": "*",
     "eslint-config-prettier": "*"
-
   }
 }
