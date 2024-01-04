@@ -10,7 +10,7 @@ import { program } from 'commander';
 import FileHound from 'filehound';
 import replace from 'replace-in-file';
 import tmp from 'tmp';
-import sha1File from 'sha1-file';
+import { sha1File } from 'sha1-file';
 import util from 'util';
 import TaskProcessor from "./js/taskprocessor.js";
 
