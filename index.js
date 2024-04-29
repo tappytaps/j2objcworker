@@ -255,27 +255,31 @@ async function startJ2ObjcWatcher() {
                 return;
             }
         }
-            
+                
         // copy only changed files
         const generatedFiles = await FileHound.create()
         .paths(tmpOut.name)
         .find()
-        for (const onefile of generatedFiles) {
-            const possibleExistsFile = path.resolve(`${configuration.objcdir}/${path.basename(onefile)}`)
-            let requestToCopy = true
-            if (fs.existsSync(possibleExistsFile) === true) {
-                const sha1genereated = sha1File(onefile)
-                const sha1old = sha1File(possibleExistsFile)
-                if (sha1genereated === sha1old) {
-                    requestToCopy = false
+        try {
+            for (const onefile of generatedFiles) {
+                const possibleExistsFile = path.resolve(`${configuration.objcdir}/${path.basename(onefile)}`)
+                let requestToCopy = true
+                if (fs.existsSync(possibleExistsFile) === true) {
+                    const sha1genereated = sha1File(onefile)
+                    const sha1old = sha1File(possibleExistsFile)
+                    if (sha1genereated === sha1old) {
+                        requestToCopy = false
+                    }
                 }
-            }
-            if (requestToCopy) {
-                fs.copySync(onefile, possibleExistsFile)
-            } else {
-                console.log(`${path.basename(onefile)} Not changed, will not copy.`)
-            }  
-        } 
+                if (requestToCopy) {
+                    fs.copySync(onefile, possibleExistsFile)
+                } else {
+                    console.log(`${path.basename(onefile)} Not changed, will not copy.`)
+                }  
+            }     
+        } catch (err) {
+            console.error(chalk.bold.red(`Copy error: ${err}`));
+        }
 
         if (parameters.verbose) {
             console.log("j2objc run finished.")
@@ -346,5 +350,9 @@ async function startJ2ObjcWatcher() {
         }
     });
 }
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 startJ2ObjcWatcher()
