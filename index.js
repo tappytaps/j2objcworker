@@ -141,7 +141,7 @@ async function startJ2ObjcWatcher() {
 
             needRebuildProcessor.acquirePause()
             javaTaskProcessor.acquirePause()    
-            const protoCCommand = `${j2objcHome}/j2objc_protoc   --include_imports --proto_path=${absProtobufDir}/src --proto_path=${protobufinclude} --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${filesListParam}`
+            const protoCCommand = `"${j2objcHome}/j2objc_protoc"   --include_imports --proto_path=${absProtobufDir}/src --proto_path=${protobufinclude} --java_out ${absProtobufDir}/genjava --j2objc_out=${absProtobufDir}/genobjc ${filesListParam}`
             if (parameters.verbose) {
                 console.log(protoCCommand)
             }
@@ -179,12 +179,13 @@ async function startJ2ObjcWatcher() {
                 }
                 
                     
-
+    
                 // compile Java
-                const javaCCommand = `javac -cp ${j2objcHome}/lib/protobuf_runtime.jar -d ${absProtobufDir}/classes \`find ${absProtobufDir}/genjava -name "*.java"\``
+                const javaCCommand = `javac -cp "${j2objcHome}/lib/protobuf_runtime.jar" -d ${absProtobufDir}/classes \`find ${absProtobufDir}/genjava -name "*.java"\``
                 if (parameters.verbose) {
                     console.log(javaCCommand)
                 }
+                
                 exec(javaCCommand, (err2, stdout2, stderr2) => {
                     process.stdout.write(chalk.green("Done\n"))
 
@@ -224,7 +225,7 @@ async function startJ2ObjcWatcher() {
         if (parameters.onebyone) {
             for (const oneFile of listOfFilesReducedWithExludes) {
                 console.log(`Processing file: ${oneFile}`)
-                let j2ObjcExec = `${j2objcHome}/j2objc -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+                let j2ObjcExec = `"${j2objcHome}/j2objc" -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
                 if (prefix) {
                     j2ObjcExec += ` --prefix "${prefix}"`
                 }
@@ -237,7 +238,7 @@ async function startJ2ObjcWatcher() {
                 }
             }
         } else {
-            let j2ObjcExec = `${j2objcHome}/j2objc -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+            let j2ObjcExec = `"${j2objcHome}/j2objc" -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
             if (prefix) {
                 j2ObjcExec += ` --prefix "${prefix}"`
             }
