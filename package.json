@@ -20,6 +20,7 @@
     "filehound": "^1.17.6",
     "fs-exists-sync": "^0.1.0",
     "fs-extra": "^11.2.0",
+    "j2objcworker": "^1.8.0",
     "replace-in-file": "^7.1.0",
     "sha1-file": "^3.0.0",
     "tmp": "^0.2.1"
@@ -29,9 +30,9 @@
   },
   "devDependencies": {
     "eslint": "*",
-    "eslint-config-airbnb-base": "*",
-    "eslint-plugin-import": "*",
     "eslint-config-airbnb": "*",
-    "eslint-config-prettier": "*"
+    "eslint-config-airbnb-base": "*",
+    "eslint-config-prettier": "*",
+    "eslint-plugin-import": "*"
   }
 }

@@ -222,28 +222,37 @@ async function startJ2ObjcWatcher() {
             process.stdout.write(`* Processing: ${chalk.bold(filesToShow.join(", "))}... `)
         }
         const tmpOut = tmp.dirSync()
+        let j2objcFailed = false
+        const buildJ2ObjcCommand = (sourceFiles) => {
+            let j2ObjcExec = `"${j2objcHome}/j2objc" -Werror -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
+            if (prefix) {
+                j2ObjcExec += ` --prefix "${prefix}"`
+            }
+            j2ObjcExec += ` ${sourceFiles}`
+            return j2ObjcExec
+        }
         if (parameters.onebyone) {
             for (const oneFile of listOfFilesReducedWithExludes) {
                 console.log(`Processing file: ${oneFile}`)
-                let j2ObjcExec = `"${j2objcHome}/j2objc" -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
-                if (prefix) {
-                    j2ObjcExec += ` --prefix "${prefix}"`
+                const j2ObjcExec = buildJ2ObjcCommand(oneFile)
+                if (parameters.verbose) {
+                    console.log(j2ObjcExec)
                 }
-                j2ObjcExec += ` ${oneFile}`
                 try {
                     const {stdout, stderr } = await promiseExec(j2ObjcExec)
                     process.stdout.write(chalk.green(`Done ${oneFile}\n`))
                 } catch (error) {
                     console.error(chalk.bold.red(`exec error: ${oneFile}: ${error}`));
+                    j2objcFailed = true
+                    break
                 }
             }
         } else {
-            let j2ObjcExec = `"${j2objcHome}/j2objc" -d "${tmpOut.name}" -sourcepath "${javaSourcesDirInOne}" -classpath "${classpath}" ${otheroptions}`
-            if (prefix) {
-                j2ObjcExec += ` --prefix "${prefix}"`
-            }
-            j2ObjcExec += ` ${files}`
+            const j2ObjcExec = buildJ2ObjcCommand(files)
             try {
+                if (parameters.verbose) {
+                    console.log(j2ObjcExec)
+                }
                 const {stdout, stderr } = await promiseExec(j2ObjcExec)
                 if (stdout.length > 0) {
                     console.log(chalk.gray(`${stdout}`));
@@ -251,10 +260,17 @@ async function startJ2ObjcWatcher() {
                 process.stdout.write(chalk.green(`Done\n`))    
             } catch (err) {
                 console.error(chalk.bold.red(`exec error: ${err}`));
-                javaTaskProcessor.releasePause()
-                needRebuildProcessor.releasePause()
-                return;
+                j2objcFailed = true
             }
+        }
+
+        if (j2objcFailed) {
+            javaTaskProcessor.releasePause()
+            needRebuildProcessor.releasePause()
+            if (parameters.batchmode) {
+                process.exit(1)
+            }
+            return
         }
                 
         // copy only changed files
